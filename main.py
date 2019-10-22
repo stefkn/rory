@@ -3,11 +3,17 @@ import time
 import wikipedia
 import click
 import sys
+import re
+import pprint
 
 class RecogEventHandler:
+    _speech_recognizer = None
     _last_output_recognizing = False
+    full_page_output_mode = False
+    years_found = []
 
     def __init__(self, speech_recognizer):
+        self._speech_recognizer = speech_recognizer
         self._cancel_event_signal = speech_recognizer.canceled
         self._recognized_event_signal = speech_recognizer.recognized
         self._recognizing_event_signal = speech_recognizer.recognizing
@@ -24,22 +30,39 @@ class RecogEventHandler:
         self._speech_stop_event_signal.connect(self.speech_stop_event_signal_handler)
 
     def cancel_event_signal_handler(self, input, evt_args=0):
-        print("[CANCEL_EVENT] " + str(input.cancellation_details))
+        print('\n[CANCEL_EVENT] ' + str(input.cancellation_details))
         self._last_output_recognizing = False
 
     def session_started_event_signal_handler(self, input, evt_args=0):
-        print("[SESSION_START] " + str(input.session_id))
+        print('\n[SESSION_START] ' + str(input.session_id))
         self._last_output_recognizing = False
 
     def session_stopped_event_signal_handler(self, input, evt_args=0):
         print('\n[SESSION_STOP] ' + str(input.session_id))
         self._last_output_recognizing = False
 
-    # --- Speech Events
+    # --- Speech Events ---
 
     def recognized_event_signal_handler(self, input, evt_args=0):
-        print('\n[RECOGNIZED] \e[38;2;0;0;0m\e[48;2;255;255;255m' + str(input.result.text) + '\e[0m')
+        print('\n[RECOGNIZED] ' + str(input.result.text))
         self._last_output_recognizing = False
+        # --- check for commands ---
+        if str(input.result.text) == "Rory stop.":
+            self._speech_recognizer.stop_continuous_recognition()
+            print("Rory has stopped listening.")
+        if str(input.result.text) == "Rory full page output true.":
+            self.full_page_output_mode = True
+            print("Rory will output all page contents.")
+        if str(input.result.text) == "Rory full page output false.":
+            self.full_page_output_mode = False
+            print("Rory will NOT output all page contents.")
+        # --- find years ---
+        regex = r"[1][0-9]{3}"
+        matches = re.finditer(regex, str(input.result.text), re.MULTILINE)
+        for matchNum, match in enumerate(matches, start=1):
+            print ("[YEAR] {matchNum} was found at {start}-{end}: {match}".format(matchNum = matchNum, start = match.start(), end = match.end(), match = match.group()))
+            self.years_found.append(match.group())
+            self.display_year_info(str(match.group()))
 
     def recognizing_event_signal_handler(self, input, evt_args=0):
         if self._last_output_recognizing: 
@@ -57,6 +80,24 @@ class RecogEventHandler:
     def speech_stop_event_signal_handler(self, input, evt_args=0):
         print('\n[SPEECH_STOP] ' + str(input.offset))
         self._last_output_recognizing = False
+
+    # wiki tasks
+
+    def display_year_info(self, inputyr):
+        page = wikipedia.page(inputyr).content
+        regex = r"(?<==\sEvents\s==\n\n\n)([\w\W\s\S\d\D\n\r\t\0\v\n]*?)(?<=\n\n==\s)"
+        matches = re.finditer(regex, page, re.MULTILINE)
+        for matchNum, match in enumerate(matches, start=1):
+            # print ("Match {matchNum} was found at {start}-{end}: {match}".format(matchNum = matchNum, start = match.start(), end = match.end(), match = match.group()))
+            if self.full_page_output_mode:
+                print(str(match.group()))
+            else:
+                self.print_summary(str(match.group()))
+
+    def print_summary(self, page_content):
+        for line in page_content.split("\n"):
+            if "United States" in line:
+                pprint.pprint(line)
 
     @property
     def cancel_event_signal(self):
@@ -110,10 +151,10 @@ speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_r
 speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
 recog_event_handler = RecogEventHandler(speech_recognizer)
 
-print("START SPEAKING 20s")
-test = speech_recognizer.start_continuous_recognition()
-time.sleep(10)
-test.stop_continuous_recognition()
+print("START SPEAKING")
+speech_recognizer.start_continuous_recognition()
+time.sleep(30)
+speech_recognizer.stop_continuous_recognition()
 print("END")
 
 
