@@ -9,6 +9,7 @@ import flask_socketio #pylint: disable=import-error
 import threading
 import os
 import json
+import logging
 
 config = json.load(open('config.json'))
 
@@ -118,6 +119,7 @@ class RecogEventHandler:
                     for word in keyword_list:
                         if word in line:
                             output.append(line)
+                
                 output_json = json.dumps({
                     "text": inputyr,
                     "longtext": output
@@ -165,6 +167,15 @@ class RecogEventHandler:
         return self._speech_stop_event_signal
 
 
+class NLContextManager():
+    """
+    A class for handling NL input from RecogEventHandler and extracting context from the spoken cues using Named Entity Recognition
+    """
+    def __init__(self):
+        print("New NLContextManager for session")
+    
+    def 
+
 class SpeechRecogThread(threading.Thread):
     def __init__(self, speech_recognizer):
         super(SpeechRecogThread, self).__init__()
@@ -204,11 +215,11 @@ class WebInterface():
         # if __name__ == '__main__':
         socketio.run(app) 
 
-
-speech_key, service_region = config['AZURE_SPEECH_KEY'], config['AZURE_SERVICE_REGION']
-speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
-speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
-web_interface = WebInterface(speech_recognizer)
+if __name__ == '__main__':
+    speech_key, service_region = config['AZURE_SPEECH_KEY'], config['AZURE_SERVICE_REGION']
+    speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=service_region)
+    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
+    web_interface = WebInterface(speech_recognizer)
 
 
 # class SpeechRecogThread(threading.Thread):
